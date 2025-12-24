@@ -98,8 +98,9 @@ export async function POST(req: NextRequest) {
     if (importData.data.usersV2 && Array.isArray(importData.data.usersV2)) {
       for (const userV2 of importData.data.usersV2) {
         try {
-          // 跳过站长（站长使用环境变量认证）
-          if (userV2.role === 'owner') {
+          // 跳过环境变量中的站长（站长使用环境变量认证）
+          if (userV2.username === process.env.USERNAME) {
+            console.log(`跳过站长 ${userV2.username} 的导入`);
             continue;
           }
 
@@ -108,6 +109,12 @@ export async function POST(req: NextRequest) {
           const passwordV2 = userData?.passwordV2;
 
           if (passwordV2) {
+            // 将站长角色转换为普通角色
+            const importedRole = userV2.role === 'owner' ? 'user' : userV2.role;
+            if (userV2.role === 'owner') {
+              console.log(`用户 ${userV2.username} 的角色从 owner 转换为 user`);
+            }
+
             // 直接使用加密后的密码创建用户
             const storage = (db as any).storage;
             if (storage && typeof storage.client?.hset === 'function') {
@@ -115,7 +122,7 @@ export async function POST(req: NextRequest) {
               const createdAt = userV2.created_at || Date.now();
 
               const userInfo: any = {
-                role: userV2.role,
+                role: importedRole,
                 banned: userV2.banned,
                 password: passwordV2,
                 created_at: createdAt.toString(),

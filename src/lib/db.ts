@@ -274,8 +274,8 @@ export class DbManager {
 
     for (const user of users) {
       try {
-        // 跳过站长（站长使用环境变量认证，不需要迁移）
-        if (user.role === 'owner') {
+        // 跳过环境变量中的站长（站长使用环境变量认证，不需要迁移）
+        if (user.username === process.env.USERNAME) {
           console.log(`跳过站长 ${user.username} 的迁移`);
           continue;
         }
@@ -294,11 +294,6 @@ export class DbManager {
         if ((user as any).oidcSub) {
           password = crypto.randomUUID();
           console.log(`用户 ${user.username} (OIDC用户) 使用随机密码迁移`);
-        }
-        // 如果是站长，使用环境变量中的密码
-        else if (user.username === process.env.USERNAME && process.env.PASSWORD) {
-          password = process.env.PASSWORD;
-          console.log(`用户 ${user.username} (站长) 使用环境变量密码迁移`);
         }
         // 尝试从旧的存储中获取密码
         else {
@@ -322,11 +317,17 @@ export class DbManager {
           }
         }
 
+        // 将站长角色转换为普通角色
+        const migratedRole = user.role === 'owner' ? 'user' : user.role;
+        if (user.role === 'owner') {
+          console.log(`用户 ${user.username} 的角色从 owner 转换为 user`);
+        }
+
         // 创建新用户
         await this.createUserV2(
           user.username,
           password,
-          user.role,
+          migratedRole,
           user.tags,
           (user as any).oidcSub,
           user.enabledApis
